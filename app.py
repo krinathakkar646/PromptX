@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from pipeline.preprocessor import clean_and_tokenize
-from pipeline.sensitive_data import scan_sensitive_data
+from pipeline.sensitive_data import redact_sensitive_data, scan_sensitive_data
 from pipeline.prompt_injection import scan_prompt_injection
 from pipeline.jailbreak import scan_jailbreak
 from pipeline.privacy_compliance import scan_privacy_compliance
 from pipeline.contextual_analysis import scan_contextual_analysis
-from pipeline.logger import init_db, log_incident  # Import internal local storage
+from pipeline.logger import get_recent_logs, init_db, log_incident
 
 app = Flask(__name__)
 
@@ -14,7 +14,13 @@ init_db()
 
 @app.route('/')
 def home():
-    return "PromptX 5-Module Pipeline Gateway is fully operational!"
+    return render_template("index.html")
+
+
+@app.route('/api/history', methods=['GET'])
+def scan_history():
+    """Expose only redacted local records for the dashboard history panel."""
+    return jsonify({"logs": get_recent_logs()})
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_prompt():
@@ -27,34 +33,29 @@ def analyze_prompt():
     # 1. Run text cleaning preprocessing (Step 2)
     preprocessed_data = clean_and_tokenize(user_prompt)
     
-    # 2. Parallel Core Security Screening (Step 3)
+    # 2. Core security screening (each module returns a score and severity)
     m31_sensitive = scan_sensitive_data(user_prompt)
     m32_injection = scan_prompt_injection(user_prompt)
     m33_jailbreak = scan_jailbreak(user_prompt)
     m34_compliance = scan_privacy_compliance(user_prompt)
     m35_contextual = scan_contextual_analysis(user_prompt)
     
-    # 3. Dynamic Local Scoring Engine (Calculated directly to save scope)
-    base_score = 0
-    triggered_modules = []
-    
-    if m31_sensitive["risk_detected"]:
-        base_score += 40
-        triggered_modules.append("Sensitive Data Leakage")
-    if m32_injection["risk_detected"]:
-        base_score += 35
-        triggered_modules.append("Prompt Injection Attack")
-    if m33_jailbreak["risk_detected"]:
-        base_score += 45
-        triggered_modules.append("Adversarial Jailbreak Attempt")
-    if m34_compliance["risk_detected"]:
-        base_score += 25
-        triggered_modules.append("Compliance Policy Breach")
-    if m35_contextual["risk_detected"]:
-        base_score += 15
-        triggered_modules.append("Risky Semantic Context")
-
-    final_score = min(base_score, 100)
+    # 3. Severity-weighted scoring with an additional combined-attack penalty.
+    module_results = [
+        ("Sensitive Data Leakage", m31_sensitive),
+        ("Prompt Injection Attack", m32_injection),
+        ("Adversarial Jailbreak Attempt", m33_jailbreak),
+        ("Compliance Policy Breach", m34_compliance),
+        ("Risky Semantic Context", m35_contextual),
+    ]
+    triggered_modules = [name for name, result in module_results if result["risk_detected"]]
+    base_score = sum(result["module_score"] for _, result in module_results)
+    combined_attack_bonus = 0
+    if len(triggered_modules) >= 2:
+        combined_attack_bonus += 10
+    if len(triggered_modules) >= 3:
+        combined_attack_bonus += 5
+    final_score = min(base_score + combined_attack_bonus, 100)
     
     # Local Risk Indexing Classification
     if final_score >= 75:
@@ -82,11 +83,13 @@ def analyze_prompt():
         if "Prompt Injection Attack" in triggered_modules or "Adversarial Jailbreak Attempt" in triggered_modules:
             recommendations.append("Action: Remove system prompt manipulation keyphrases (e.g., 'ignore instructions').")
         if "Compliance Policy Breach" in triggered_modules:
-            recommendations.append("Action: Clean the text of protected personal data (PII) or credit card strings.")
+            recommendations.append("Action: Remove or obtain approval for protected personal data, payment identifiers, or confidential information.")
+        if len(triggered_modules) >= 2:
+            recommendations.append("Action: Treat this as a combined attack and escalate it for security review.")
 
-    # 4. Step 9: Log transaction securely into internal SQLite storage
+    # 4. Log only a redacted version of the prompt to avoid creating a second data leak.
     log_incident(
-        raw_prompt=user_prompt,
+        raw_prompt=redact_sensitive_data(user_prompt),
         status=final_status,
         risk_score=final_score,
         risk_classification=risk_class
@@ -97,7 +100,10 @@ def analyze_prompt():
         "status": final_status,
         "risk_classification": risk_class,
         "risk_scoring_engine": {
-            "calculated_score": final_score
+            "calculated_score": final_score,
+            "base_score": base_score,
+            "combined_attack_bonus": combined_attack_bonus,
+            "triggered_module_count": len(triggered_modules),
         },
         "ai_threat_analysis": {
             "detailed_explanation": explanation,

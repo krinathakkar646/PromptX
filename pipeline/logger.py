@@ -30,3 +30,19 @@ def log_incident(raw_prompt, status, risk_score, risk_classification):
     ''', (raw_prompt, status, risk_score, risk_classification))
     conn.commit()
     conn.close()
+
+
+def get_recent_logs(limit=8):
+    """Return the latest redacted scan records for the local dashboard."""
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT timestamp, raw_prompt, status, risk_score, risk_classification
+        FROM security_logs
+        ORDER BY id DESC
+        LIMIT ?
+    ''', (limit,))
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
