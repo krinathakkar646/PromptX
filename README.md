@@ -1,11 +1,3 @@
-**PromptX: AI Security Framework for Large Language Models**
-
-
-
-PromptX is a multi-layered AI security framework that analyzes user prompts before they are submitted to Large Language Models (LLMs). It helps identify sensitive-data exposure, prompt-injection attacks, jailbreak attempts, privacy/compliance risks, and suspicious contextual intent.
-
-
-
 # PromptX: AI Security Framework for Large Language Models
 
 PromptX is a multi-layered AI security framework that analyzes user prompts before they are submitted to Large Language Models (LLMs). It helps identify sensitive-data exposure, prompt-injection attacks, jailbreak attempts, privacy/compliance risks, and suspicious contextual intent.
