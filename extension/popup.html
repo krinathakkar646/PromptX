@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PromptX</title>
+  <style>
+    body { width: 280px; margin: 0; padding: 18px; color: #172033; font: 14px Arial, sans-serif; }
+    h2 { margin: 0 0 10px; color: #2457d6; }
+    p { line-height: 1.45; }
+    code { background: #f2f4f7; padding: 2px 4px; border-radius: 4px; }
+    .status { margin-top: 12px; padding: 10px; border-radius: 6px; background: #ecfdf3; color: #027a48; }
+  </style>
+</head>
+<body>
+  <h2>PromptX</h2>
+  <p>Prompts are scanned locally before submission on ChatGPT, Gemini, and Claude.</p>
+  <div class="status">API: <span id="status">checking...</span></div>
+  <p>Start the Flask server with <code>python app.py</code> if the API is unavailable.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

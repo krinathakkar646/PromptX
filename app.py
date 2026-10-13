@@ -12,9 +12,16 @@ app = Flask(__name__)
 # Initialize the SQLite database on startup
 init_db()
 
+@app.after_request
+def allow_extension_requests(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
 @app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template("index.html", shared_prompt=request.args.get("prompt", ""))
 
 
 @app.route('/api/history', methods=['GET'])
@@ -25,10 +32,14 @@ def scan_history():
 @app.route('/api/analyze', methods=['POST'])
 def analyze_prompt():
     data = request.get_json()
-    if not data or 'prompt' not in data:
-        return jsonify({"error": "No prompt provided"}), 400
+    if not isinstance(data, dict) or 'prompt' not in data:
+        return jsonify({"error": "A JSON object with a 'prompt' field is required."}), 400
     
     user_prompt = data['prompt']
+    if not isinstance(user_prompt, str):
+        return jsonify({"error": "The 'prompt' field must be a string."}), 400
+    if not user_prompt.strip():
+        return jsonify({"error": "The 'prompt' field must not be empty."}), 400
     
     # 1. Run text cleaning preprocessing (Step 2)
     preprocessed_data = clean_and_tokenize(user_prompt)
@@ -117,9 +128,10 @@ def analyze_prompt():
             "module_3_4_privacy_compliance": m34_compliance,
             "module_3_5_contextual_analysis": m35_contextual
         }
+        
     }
     
     return jsonify(response_payload)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)

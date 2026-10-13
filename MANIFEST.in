@@ -1,0 +1,5 @@
+include README.md
+include requirements.txt
+recursive-include templates *.html
+recursive-include bench *.json *.py
+recursive-include extension *.json *.js *.html
